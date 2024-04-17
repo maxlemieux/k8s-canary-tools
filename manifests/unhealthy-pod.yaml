@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: unhealthy-pod
+spec:
+  containers:
+  - name: unhealthy-container
+    image: busybox
+    command: ["/bin/sh", "-c"]
+    args:
+    - |
+      while true; do
+        sleep 30
+        if [ $((RANDOM % 2)) -eq 0 ]; then
+          echo "Container is healthy"
+        else
+          echo "Container is unhealthy"
+          exit 1
+        fi
+      done
+    livenessProbe:
+      exec:
+        command:
+        - /bin/sh
+        - -c
+        - |
+          if [ $((RANDOM % 2)) -eq 0 ]; then
+            echo "Liveness probe succeeded"
+            exit 0
+          else
+            echo "Liveness probe failed"
+            exit 1
+          fi
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      failureThreshold: 1

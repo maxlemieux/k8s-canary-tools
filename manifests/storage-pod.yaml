@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: storage-pod
+spec:
+  volumes:
+  - name: data-volume
+    persistentVolumeClaim:
+      claimName: my-pvc
+  containers:
+  - name: storage-container
+    image: alpine
+    command: ["/bin/sh", "-c"]
+    args:
+    - |
+      file_count=0
+      while true; do
+        # Generate a random number of bytes between 1 and 10 MB
+        bytes=$((1 + RANDOM % 10))
+        mb=$((bytes * 1024 * 1024))
+
+        # Create a file with random data
+        file_name="/data/file-${RANDOM}.txt"
+        dd if=/dev/urandom of=${file_name} bs=1M count=${bytes}
+
+        # Increment the file count
+        file_count=$((file_count + 1))
+
+        # If the file count exceeds 5, remove the oldest file
+        if [ ${file_count} -gt 5 ]; then
+          oldest_file=$(ls -t /data | grep -v lost | tail -1)
+          rm -f /data/${oldest_file}
+          file_count=$((file_count - 1))
+        fi
+
+        # Print the current storage usage and file count
+        echo "Storage usage:"
+        du -sh /data
+        echo "File count: ${file_count}"
+
+        # Sleep for a random interval between 30 and 60 seconds
+        sleep $((30 + RANDOM % 30))
+      done
+    volumeMounts:
+    - name: data-volume
+      mountPath: /data
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: managed
